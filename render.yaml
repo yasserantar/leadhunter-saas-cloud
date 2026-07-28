@@ -2,11 +2,7 @@ services:
   - type: web
     name: leadhunter-pro-saas
     env: docker
-    plan: starter
-    disk:
-      name: leadhunter-data
-      mountPath: /app/data
-      sizeGB: 1
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
