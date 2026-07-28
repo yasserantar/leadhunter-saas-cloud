@@ -1,0 +1,1 @@
+function renderAnalytics(){document.getElementById("app-content").innerHTML='<div class="page-transition"><div class="card"><h2>التحليلات</h2><p>قريباً...</p></div></div>'}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeadHunter Pro - Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Alexandria', 'sans-serif'],
+                    },
+                    colors: {
+                        apple: {
+                            bg: '#f5f5f7',
+                            card: '#ffffff',
+                            text: '#1d1d1f',
+                            subtext: '#86868b',
+                            blue: '#0066cc',
+                            blueHover: '#0077ed',
+                            border: '#d2d2d7'
+                        }
+                    },
+                    boxShadow: {
+                        'apple': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'apple-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d2d2d7; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #86868b; }
+
+        .sidebar-link {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-link:hover {
+            background-color: #f5f5f7;
+            transform: translateX(-4px);
+        }
+        .sidebar-link.active {
+            background-color: #0066cc;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        .sidebar-link.active i { color: white; }
+
+        input, select {
+            transition: all 0.2s ease;
+        }
+        input:focus, select:focus {
+            box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+        }
+
+        .btn-primary {
+            background-color: #0066cc;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0077ed;
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+
+        .hidden { display: none !important; }
+        
+        /* Terminal */
+        .terminal {
+            background: #1e1e1e;
+            color: #4af626;
+            font-family: monospace;
+            border-radius: 1rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex items-center justify-center relative">
+
+    <!-- ==================== لوحة التحكم (Mac OS Style Dashboard) ==================== -->
+    <div id="dashboard-section" class="z-10 w-full h-full flex flex-row overflow-hidden bg-apple-bg">
+        
+        <!-- Sidebar -->
+        <aside class="w-72 bg-white/80 backdrop-blur-xl border-l border-apple-border flex flex-col shadow-sm z-20">
+            <!-- Logo Area -->
+            <div class="p-8 flex items-center gap-4 border-b border-apple-border/50">
+                <div class="w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-crosshairs text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-apple-text tracking-tight">LeadHunter Pro</h2>
+                    <span id="user-role-badge" class="text-[10px] uppercase font-bold tracking-wider text-apple-blue bg-apple-blue/10 px-2 py-0.5 rounded-md">Admin</span>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+                <a href="#" class="sidebar-link active flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-white"></i> لوحة القيادة
+                </a>
+                <a href="#" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                    <i class="fa-solid fa-magnifying-glass w-5 text-center text-apple-subtext"></i> محرك السحب (Scraper)
+                </a>
+                <a href="#" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                    <i class="fa-solid fa-users w-5 text-center text-apple-subtext"></i> قاعدة العملاء (CRM)
+                </a>
+                <a href="#" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                    <i class="fa-solid fa-envelope-open-text w-5 text-center text-apple-subtext"></i> حملات البريد
+                </a>
+                <a href="#" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                    <i class="fa-brands fa-whatsapp w-5 text-center text-apple-subtext"></i> أتمتة واتساب
+                </a>
+            </nav>
+
+            <!-- User Profile (Bottom) -->
+            <div class="p-6 border-t border-apple-border/50 bg-white/50">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-apple-bg border border-apple-border flex items-center justify-center text-apple-text shadow-sm">
+                        <i class="fa-regular fa-user"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <div id="user-name-display" class="text-sm font-bold text-apple-text truncate">ياسر عنتر</div>
+                        <div id="user-email-display" class="text-xs text-apple-subtext truncate">yasser@apple.com</div>
+                    </div>
+                </div>
+                <button id="logout-btn" class="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> تسجيل الخروج
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+            
+            <!-- Top Header -->
+            <header class="h-20 px-10 flex items-center justify-between bg-apple-bg/80 backdrop-blur-md z-10 sticky top-0 border-b border-apple-border/30">
+                <h1 class="text-2xl font-bold text-apple-text tracking-tight">نظرة عامة</h1>
+                <div class="flex items-center gap-4">
+                    <button class="w-10 h-10 rounded-full bg-white border border-apple-border shadow-sm flex items-center justify-center text-apple-text hover:bg-gray-50 transition-colors">
+                        <i class="fa-regular fa-bell"></i>
+                    </button>
+                    <button id="connect-whatsapp-btn" class="px-5 py-2.5 bg-green-50 text-green-600 border border-green-200 rounded-full hover:bg-green-100 transition-all text-sm font-bold flex items-center gap-2 shadow-sm">
+                        <i class="fa-brands fa-whatsapp text-lg"></i> ربط واتساب
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-10 pb-24">
+                
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    <!-- Stat Card -->
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-apple border border-apple-border/40 hover:shadow-apple-hover transition-shadow">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-xl">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <div class="text-apple-subtext text-sm font-medium">العملاء المستخرجين</div>
+                        </div>
+                        <div class="text-4xl font-bold text-apple-text">0</div>
+                    </div>
+                    <!-- Stat Card -->
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-apple border border-apple-border/40 hover:shadow-apple-hover transition-shadow">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-xl">
+                                <i class="fa-brands fa-whatsapp"></i>
+                            </div>
+                            <div class="text-apple-subtext text-sm font-medium">رسائل واتساب</div>
+                        </div>
+                        <div class="text-4xl font-bold text-apple-text">0</div>
+                    </div>
+                    <!-- Stat Card -->
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-apple border border-apple-border/40 hover:shadow-apple-hover transition-shadow">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 text-xl">
+                                <i class="fa-regular fa-envelope"></i>
+                            </div>
+                            <div class="text-apple-subtext text-sm font-medium">الإيميلات المرسلة</div>
+                        </div>
+                        <div class="text-4xl font-bold text-apple-text">0</div>
+                    </div>
+                    <!-- Stat Card -->
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-apple border border-apple-border/40 hover:shadow-apple-hover transition-shadow">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 text-xl">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <div class="text-apple-subtext text-sm font-medium">معدل التحويل</div>
+                        </div>
+                        <div class="text-4xl font-bold text-apple-text">0%</div>
+                    </div>
+                </div>
+
+                <!-- Scraping Console Tool -->
+                <div class="bg-white rounded-[2rem] shadow-apple border border-apple-border/40 overflow-hidden">
+                    <div class="p-8 border-b border-apple-border/40">
+                        <h3 class="text-xl font-bold text-apple-text mb-6 flex items-center gap-2">
+                            <i class="fa-solid fa-radar text-apple-blue"></i> رادار استخراج العملاء
+                        </h3>
+                        
+                        <div class="flex flex-col lg:flex-row gap-4">
+                            <select id="scrape-source" class="w-full lg:w-1/4 bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium">
+                                <option value="google">📍 خرائط جوجل (شركات)</option>
+                                <option value="linkedin">💼 لينكد إن (أشخاص وشركات)</option>
+                                <option value="reddit">💬 رديت (مشاكل واحتياجات)</option>
+                                <option value="yellowpages">📒 الصفحات الصفراء (دليل)</option>
+                            </select>
+                            
+                            <input type="text" id="scrape-query" class="flex-1 bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium" placeholder="عن ماذا تبحث؟ (مثال: عيادات أسنان، شركات برمجة)">
+                            
+                            <input type="text" id="scrape-location" class="w-full lg:w-1/4 bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium" placeholder="المكان (مثال: دبي، القاهرة)">
+                            
+                            <button id="start-scrape-btn" class="w-full lg:w-auto btn-primary px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
+                                <i class="fa-solid fa-play"></i> بدء السحب
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Style Output -->
+                    <div class="p-6 bg-gray-50">
+                        <div class="terminal h-64 overflow-y-auto p-5 text-sm" id="terminal-output">
+                            <div class="text-green-400 opacity-70 mb-2">LeadHunter Core OS v3.0 initialized.</div>
+                            <div class="text-green-400 opacity-70 mb-4">Ready to extract highly targeted leads. Waiting for command...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for WhatsApp QR -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-10 rounded-[2rem] text-center max-w-sm w-full shadow-2xl border border-apple-border/50 transform scale-95 transition-transform duration-300">
+            <div class="w-16 h-16 bg-green-50 rounded-full mx-auto mb-4 flex items-center justify-center text-green-500 text-3xl">
+                <i class="fa-brands fa-whatsapp"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-apple-text">ربط جهاز الواتساب</h3>
+            <p class="text-sm text-apple-subtext mb-8">افتح تطبيق الواتساب في هاتفك وامسح الكود لربط النظام.</p>
+            <div id="qr-container" class="bg-white p-4 rounded-xl border border-apple-border inline-block mb-8 shadow-sm min-h-[200px] min-w-[200px] flex items-center justify-center">
+                <i class="fa-solid fa-spinner fa-spin text-3xl text-apple-subtext"></i>
+            </div>
+            <button id="close-qr-modal" class="w-full py-3.5 font-semibold text-apple-text bg-apple-bg hover:bg-gray-200 rounded-xl transition-colors">إغلاق نافذة الربط</button>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

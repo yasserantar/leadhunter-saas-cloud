@@ -1,0 +1,10 @@
+# Auto-generated gitignore
+*.log
+build
+data
+node_modules
+.git
+.vercel
+.env
+dist
+node_modules.zip

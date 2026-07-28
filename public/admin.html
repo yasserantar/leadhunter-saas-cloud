@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeadHunter Pro - لوحة التحكم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Alexandria', 'sans-serif'] },
+                    colors: {
+                        apple: { bg: '#f5f5f7', text: '#1d1d1f', subtext: '#86868b', blue: '#0066cc', border: '#d2d2d7' }
+                    },
+                    boxShadow: {
+                        'apple': '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+                        'apple-hover': '0 10px 15px -3px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: #f5f5f7; color: #1d1d1f; -webkit-font-smoothing: antialiased; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #d2d2d7; border-radius: 10px; }
+        .sidebar-link { transition: all 0.25s ease; }
+        .sidebar-link:hover { background: #f5f5f7; transform: translateX(-3px); }
+        .sidebar-link.active { background: #0066cc; color: white; box-shadow: 0 4px 12px rgba(0,102,204,0.35); }
+        .sidebar-link.active i, .sidebar-link.active span { color: white !important; }
+        .btn-primary { background: #0066cc; color: white; transition: all 0.25s; }
+        .btn-primary:hover { background: #0077ed; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,102,204,0.4); }
+        .btn-success { background: #28a745; color: white; transition: all 0.25s; }
+        .btn-success:hover { background: #218838; transform: translateY(-1px); }
+        .btn-danger { background: #dc3545; color: white; transition: all 0.25s; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-wa { background: #25D366; color: white; transition: all 0.25s; }
+        .btn-wa:hover { background: #1ebe5b; transform: translateY(-1px); }
+        .hidden { display: none !important; }
+        .terminal { background: #0d1117; color: #58a6ff; font-family: 'Courier New', monospace; border-radius: 1rem; box-shadow: inset 0 2px 10px rgba(0,0,0,0.6); }
+        .stat-card { transition: all 0.3s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .lead-row:hover { background: #f0f4ff; }
+        .lead-row input[type="checkbox"]:checked ~ * { background: #e8f0fe; }
+        .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+        .badge-new { background: #e8f4fd; color: #0066cc; }
+        .badge-emailed { background: #e8f5e9; color: #28a745; }
+        .badge-whatsapped { background: #e8f9f0; color: #25D366; }
+        .progress-bar { height: 4px; background: #e5e7eb; border-radius: 9999px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0066cc, #25D366); border-radius: 9999px; transition: width 0.5s ease; }
+        .qr-container { display: flex; align-items: center; justify-content: center; padding: 2rem; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-card { background: white; border-radius: 1.5rem; padding: 2rem; width: 90%; max-width: 600px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .wa-connecting { animation: pulse 1.5s ease infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        textarea { font-family: 'Alexandria', sans-serif; }
+    </style>
+</head>
+<body class="h-screen overflow-hidden">
+
+<!-- ========== MAIN LAYOUT ========== -->
+<div class="flex flex-row h-screen overflow-hidden bg-apple-bg">
+
+    <!-- ========== SIDEBAR ========== -->
+    <aside class="w-72 bg-white/90 backdrop-blur-xl border-l border-apple-border flex flex-col shadow-sm z-20 flex-shrink-0">
+        <!-- Logo -->
+        <div class="p-6 flex items-center gap-3 border-b border-apple-border/50">
+            <div class="w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl flex items-center justify-center shadow-md">
+                <i class="fa-solid fa-crosshairs text-white text-sm"></i>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-apple-text">LeadHunter Pro</h2>
+                <span id="user-role-badge" class="text-[10px] uppercase font-bold tracking-wider text-apple-blue bg-blue-50 px-2 py-0.5 rounded-md">ADMIN</span>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 px-4 py-5 space-y-1 overflow-y-auto">
+            <a href="#" id="tab-dashboard" class="sidebar-link active flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                <span>لوحة القيادة</span>
+            </a>
+            <a href="#" id="tab-scraper" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                <i class="fa-solid fa-magnifying-glass w-5 text-center text-apple-subtext"></i>
+                <span>محرك السحب</span>
+                <span class="mr-auto text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold">500+</span>
+            </a>
+            <a href="#" id="tab-crm" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                <i class="fa-solid fa-users w-5 text-center text-apple-subtext"></i>
+                <span>قاعدة العملاء CRM</span>
+                <span id="leads-count-badge" class="mr-auto text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">0</span>
+            </a>
+            <a href="#" id="tab-email" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                <i class="fa-solid fa-envelope-open-text w-5 text-center text-apple-subtext"></i>
+                <span>حملات الإيميل</span>
+            </a>
+            <a href="#" id="tab-whatsapp" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-apple-text">
+                <i class="fa-brands fa-whatsapp w-5 text-center text-apple-subtext"></i>
+                <span>أتمتة الواتساب</span>
+                <span id="wa-status-dot" class="mr-auto w-2 h-2 rounded-full bg-red-400"></span>
+            </a>
+        </nav>
+
+        <!-- User Profile -->
+        <div class="p-4 border-t border-apple-border/50">
+            <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                    <i class="fa-solid fa-user text-xs"></i>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <div id="user-name-display" class="text-sm font-semibold text-apple-text truncate">يتحميل...</div>
+                    <div id="user-email-display" class="text-xs text-apple-subtext truncate">...</div>
+                </div>
+            </div>
+            <button id="logout-btn" class="w-full mt-2 flex items-center justify-center gap-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 py-2.5 px-4 rounded-xl transition-all font-medium">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> تسجيل الخروج
+            </button>
+        </div>
+    </aside>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="flex-1 overflow-y-auto">
+
+        <!-- ===== PANEL: DASHBOARD ===== -->
+        <div id="panel-dashboard" class="panel-section p-8">
+            <h1 class="text-2xl font-bold text-apple-text mb-2">نظرة عامة</h1>
+            <p class="text-apple-subtext text-sm mb-8">مرحباً بك في لوحة قيادة LeadHunter Pro</p>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+                <div class="stat-card bg-white p-6 rounded-2xl shadow-apple border border-apple-border/30">
+                    <div class="w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-lg mb-4">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div id="stat-total" class="text-3xl font-bold text-apple-text">0</div>
+                    <div class="text-apple-subtext text-xs font-medium mt-1">إجمالي العملاء</div>
+                </div>
+                <div class="stat-card bg-white p-6 rounded-2xl shadow-apple border border-apple-border/30">
+                    <div class="w-11 h-11 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 text-lg mb-4">
+                        <i class="fa-regular fa-envelope"></i>
+                    </div>
+                    <div id="stat-emails" class="text-3xl font-bold text-apple-text">0</div>
+                    <div class="text-apple-subtext text-xs font-medium mt-1">لديهم إيميل</div>
+                </div>
+                <div class="stat-card bg-white p-6 rounded-2xl shadow-apple border border-apple-border/30">
+                    <div class="w-11 h-11 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-lg mb-4">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <div id="stat-phones" class="text-3xl font-bold text-apple-text">0</div>
+                    <div class="text-apple-subtext text-xs font-medium mt-1">لديهم رقم/واتساب</div>
+                </div>
+                <div class="stat-card bg-white p-6 rounded-2xl shadow-apple border border-apple-border/30">
+                    <div class="w-11 h-11 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 text-lg mb-4">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </div>
+                    <div id="stat-sent" class="text-3xl font-bold text-apple-text">0</div>
+                    <div class="text-apple-subtext text-xs font-medium mt-1">رسائل أُرسلت</div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-6">
+                <h2 class="text-base font-bold text-apple-text mb-4">إجراءات سريعة</h2>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button onclick="switchTab('scraper')" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-blue-50 hover:bg-blue-100 transition-all text-blue-600 font-semibold text-sm">
+                        <i class="fa-solid fa-magnifying-glass text-xl"></i> سحب عملاء جدد
+                    </button>
+                    <button onclick="switchTab('crm')" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all text-gray-600 font-semibold text-sm">
+                        <i class="fa-solid fa-table text-xl"></i> عرض العملاء
+                    </button>
+                    <button onclick="switchTab('email')" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-purple-50 hover:bg-purple-100 transition-all text-purple-600 font-semibold text-sm">
+                        <i class="fa-solid fa-envelope text-xl"></i> إرسال إيميل
+                    </button>
+                    <button onclick="switchTab('whatsapp')" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-green-50 hover:bg-green-100 transition-all text-green-600 font-semibold text-sm">
+                        <i class="fa-brands fa-whatsapp text-xl"></i> واتساب
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PANEL: SCRAPER ===== -->
+        <div id="panel-scraper" class="panel-section hidden p-8">
+            <h1 class="text-2xl font-bold text-apple-text mb-2">محرك السحب الذكي</h1>
+            <p class="text-apple-subtext text-sm mb-6">يسحب حتى 500 عميل مع إيميل وأرقام وسوشيال ميديا تلقائياً</p>
+
+            <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-6 mb-5">
+                <!-- Source + Query + Location + Limit -->
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+                    <select id="scrape-source" class="bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-apple-text focus:outline-none focus:border-blue-400 font-medium text-sm">
+                        <option value="google">📍 خرائط جوجل (شركات)</option>
+                        <option value="linkedin">💼 لينكد إن</option>
+                        <option value="reddit">💬 ريديت</option>
+                        <option value="yellowpages">📒 الصفحات الصفراء</option>
+                    </select>
+                    <input type="text" id="scrape-query" class="lg:col-span-2 bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-apple-text focus:outline-none focus:border-blue-400 font-medium text-sm" placeholder="ما الذي تبحث عنه؟ (مثال: مطاعم، عيادات أسنان، شركات برمجة)">
+                    <input type="text" id="scrape-location" class="bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-apple-text focus:outline-none focus:border-blue-400 font-medium text-sm" placeholder="المدينة/البلد (مثال: جدة، دبي)">
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-4 items-center">
+                    <div class="flex items-center gap-3 flex-1">
+                        <label class="text-sm font-medium text-apple-subtext whitespace-nowrap">عدد العملاء:</label>
+                        <input type="range" id="scrape-limit" min="10" max="500" value="100" step="10" class="flex-1 accent-blue-600">
+                        <span id="scrape-limit-display" class="text-blue-600 font-bold text-sm w-16 text-center bg-blue-50 py-1 px-2 rounded-lg">100</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-2 text-sm text-apple-subtext cursor-pointer">
+                            <input type="checkbox" id="extract-emails-toggle" checked class="accent-blue-600 w-4 h-4">
+                            <span>استخراج إيميلات</span>
+                        </label>
+                        <button id="start-scrape-btn" class="btn-primary px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-rocket"></i> ابدأ السحب
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="scrape-progress-card" class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-5 mb-5 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-apple-text">جاري السحب...</span>
+                    <div class="flex items-center gap-2">
+                        <span id="progress-percent" class="text-green-600 font-bold text-sm">0%</span>
+                        <span class="text-gray-300">|</span>
+                        <span id="progress-count" class="text-blue-600 font-bold text-sm">0/0</span>
+                    </div>
+                </div>
+                <div class="progress-bar mb-2">
+                    <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div id="progress-stage" class="text-xs text-apple-subtext">جاري التهيئة...</div>
+                </div>
+                <div id="next-step-container" class="mt-4 pt-3 border-t border-gray-100 flex justify-center hidden">
+                    <button onclick="switchTab('crm')" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
+                        <span>انتهى السحب! اضغط هنا للانتقال للـ CRM ورؤية العملاء وإرسال الحملات</span>
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Terminal -->
+            <div class="terminal min-h-64 max-h-80 overflow-y-auto p-5 text-sm" id="terminal-output">
+                <div class="text-green-400 opacity-60 mb-1">LeadHunter Core OS v3.0 - Multi-Source Engine</div>
+                <div class="text-green-400 opacity-60">Ready for command. يسحب حتى 500 عميل بداتا كاملة...</div>
+            </div>
+        </div>
+
+        <!-- ===== PANEL: CRM ===== -->
+        <div id="panel-crm" class="panel-section hidden p-8">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-apple-text">قاعدة العملاء CRM</h1>
+                    <p class="text-apple-subtext text-sm mt-1">جميع العملاء المستخرجين مع بياناتهم الكاملة</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="exportExcel()" class="flex items-center gap-2 text-sm bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2.5 rounded-xl font-medium transition-all">
+                        <i class="fa-solid fa-file-excel"></i> تصدير إكسيل
+                    </button>
+                    <button onclick="openEmailModal()" class="btn-primary flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-bold">
+                        <i class="fa-solid fa-paper-plane"></i> إرسال للكل
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-4 mb-5">
+                <div class="flex flex-col lg:flex-row gap-3">
+                    <input type="text" id="crm-search" placeholder="🔍 بحث بالاسم، إيميل، تليفون..." class="flex-1 bg-apple-bg border border-apple-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400">
+                    <select id="crm-status-filter" class="bg-apple-bg border border-apple-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400">
+                        <option value="">كل الحالات</option>
+                        <option value="new">جديد</option>
+                        <option value="emailed">أُرسل إيميل</option>
+                        <option value="whatsapped">أُرسل واتساب</option>
+                    </select>
+                    <button onclick="loadLeads()" class="btn-primary text-sm px-5 py-2.5 rounded-xl font-bold">
+                        <i class="fa-solid fa-rotate"></i> تحديث
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bulk Actions -->
+            <div id="bulk-actions" class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 hidden flex items-center gap-4">
+                <span id="selected-count" class="text-blue-700 font-semibold text-sm">0 محدد</span>
+                <button onclick="bulkEmail()" class="btn-primary text-xs px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <i class="fa-solid fa-envelope"></i> إيميل للمحددين
+                </button>
+                <button onclick="bulkWhatsapp()" class="btn-wa text-xs px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <i class="fa-brands fa-whatsapp"></i> واتساب للمحددين
+                </button>
+                <button onclick="bulkDelete()" class="btn-danger text-xs px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <i class="fa-solid fa-trash"></i> حذف المحددين
+                </button>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-apple-border/30">
+                            <tr>
+                                <th class="px-4 py-3 text-right">
+                                    <input type="checkbox" id="select-all" class="accent-blue-600 w-4 h-4">
+                                </th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">#</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">الاسم</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">الإيميل</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">التليفون</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">العنوان</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">سوشيال</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">المصدر</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">الحالة</th>
+                                <th class="px-4 py-3 text-right text-apple-subtext font-semibold">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leads-table-body">
+                            <tr>
+                                <td colspan="10" class="text-center py-16 text-apple-subtext">
+                                    <i class="fa-solid fa-users text-4xl mb-3 block opacity-20"></i>
+                                    لا يوجد عملاء بعد. ابدأ بسحب عملاء من محرك السحب!
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div id="pagination" class="flex items-center justify-between px-6 py-4 border-t border-apple-border/30 hidden">
+                    <span id="pagination-info" class="text-sm text-apple-subtext"></span>
+                    <div class="flex gap-2" id="pagination-btns"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PANEL: EMAIL CAMPAIGNS ===== -->
+        <div id="panel-email" class="panel-section hidden p-8">
+            <h1 class="text-2xl font-bold text-apple-text mb-2">حملات الإيميل</h1>
+            <p class="text-apple-subtext text-sm mb-6">أرسل إيميل مخصص لكل عملائك دفعة واحدة</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Compose -->
+                <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-6">
+                    <h2 class="text-base font-bold text-apple-text mb-5 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-purple-500"></i> كتابة الرسالة
+                    </h2>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-semibold text-apple-subtext uppercase tracking-wider block mb-1.5">الموضوع</label>
+                            <input type="text" id="email-subject" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-400" placeholder="مثال: عرض خاص لـ {company}">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-apple-subtext uppercase tracking-wider block mb-1.5">نص الرسالة</label>
+                            <textarea id="email-body" rows="10" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-400 resize-none" placeholder="اكتب رسالتك هنا...&#10;&#10;يمكنك استخدام:&#10;{name} = اسم العميل&#10;{company} = اسم الشركة&#10;{phone} = رقمهم&#10;{address} = عنوانهم"></textarea>
+                        </div>
+
+                        <!-- Target -->
+                        <div>
+                            <label class="text-xs font-semibold text-apple-subtext uppercase tracking-wider block mb-2">المستهدفون</label>
+                            <div class="flex gap-3">
+                                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="radio" name="email-target" value="all" checked class="accent-purple-600"> الكل
+                                </label>
+                                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="radio" name="email-target" value="new" class="accent-purple-600"> الجدد فقط
+                                </label>
+                                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="radio" name="email-target" value="selected" class="accent-purple-600"> المحددين
+                                </label>
+                            </div>
+                        </div>
+
+                        <button id="send-email-btn" class="w-full btn-primary py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> إرسال الآن
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Campaign Progress + Tips -->
+                <div class="space-y-5">
+                    <!-- SMTP Notice -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                        <h3 class="text-sm font-bold text-amber-800 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> إعداد مطلوب
+                        </h3>
+                        <p class="text-xs text-amber-700 mb-3">أضف بيانات الإيميل في ملف <code class="bg-amber-100 px-1 rounded">.env</code> لتفعيل الإرسال:</p>
+                        <pre class="bg-amber-100 rounded-lg p-3 text-xs text-amber-800 font-mono">SMTP_USER=your@gmail.com
+SMTP_PASS=app-password-here
+SENDER_NAME=اسم شركتك</pre>
+                        <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-xs text-amber-700 underline mt-2 block">كيف أحصل على App Password من Gmail؟ →</a>
+                    </div>
+
+                    <!-- Live Campaign Progress -->
+                    <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-5">
+                        <h3 class="text-sm font-bold text-apple-text mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-notch text-purple-500"></i> تقدم الحملة الحالية
+                        </h3>
+                        <div id="campaign-status" class="text-apple-subtext text-sm text-center py-6">
+                            <i class="fa-solid fa-inbox text-3xl mb-2 block opacity-20"></i>
+                            لا توجد حملة نشطة
+                        </div>
+                        <div id="campaign-progress-bar" class="progress-bar mt-3 hidden">
+                            <div id="campaign-progress-fill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PANEL: WHATSAPP ===== -->
+        <div id="panel-whatsapp" class="panel-section hidden p-8">
+            <h1 class="text-2xl font-bold text-apple-text mb-2">أتمتة الواتساب</h1>
+            <p class="text-apple-subtext text-sm mb-6">أرسل رسائل واتساب لعملائك بشكل تلقائي</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- QR Connection -->
+                <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-6">
+                    <h2 class="text-base font-bold text-apple-text mb-4 flex items-center gap-2">
+                        <i class="fa-brands fa-whatsapp text-green-500"></i> ربط واتساب
+                    </h2>
+
+                    <div id="wa-disconnected" class="text-center py-6">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fa-brands fa-whatsapp text-3xl text-gray-300"></i>
+                        </div>
+                        <p class="text-apple-subtext text-sm mb-5">اتصل بواتساب عبر مسح QR Code من هاتفك</p>
+                        <button id="wa-connect-btn" class="btn-wa px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 mx-auto">
+                            <i class="fa-solid fa-qrcode"></i> إنشاء QR Code
+                        </button>
+                    </div>
+
+                    <div id="wa-connecting-state" class="text-center py-6 hidden">
+                        <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 wa-connecting">
+                            <i class="fa-brands fa-whatsapp text-3xl text-green-400"></i>
+                        </div>
+                        <p class="text-apple-subtext text-sm mb-4">جاري إنشاء QR Code...</p>
+                    </div>
+
+                    <div id="wa-qr-state" class="text-center hidden">
+                        <p class="text-sm text-apple-text font-medium mb-3">امسح الكود من واتساب → إعدادات → أجهزة مرتبطة</p>
+                        <div class="qr-container">
+                            <img id="wa-qr-img" src="" alt="QR Code" class="rounded-xl shadow-lg" style="max-width: 220px;">
+                        </div>
+                    </div>
+
+                    <div id="wa-connected-state" class="text-center py-6 hidden">
+                        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fa-solid fa-check text-2xl text-green-600"></i>
+                        </div>
+                        <p class="text-green-700 font-semibold text-base mb-1">واتساب متصل! ✅</p>
+                        <p class="text-apple-subtext text-xs mb-5">يمكنك الآن إرسال الرسائل لجميع عملائك</p>
+                        <button id="wa-disconnect-btn" class="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50 transition-all">
+                            <i class="fa-solid fa-xmark"></i> فصل الاتصال
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Compose WhatsApp -->
+                <div class="bg-white rounded-2xl shadow-apple border border-apple-border/30 p-6">
+                    <h2 class="text-base font-bold text-apple-text mb-5 flex items-center gap-2">
+                        <i class="fa-solid fa-message text-green-500"></i> كتابة رسالة واتساب
+                    </h2>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-semibold text-apple-subtext uppercase tracking-wider block mb-1.5">نص الرسالة</label>
+                            <textarea id="wa-message" rows="8" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 resize-none" placeholder="أهلاً {name} 👋&#10;&#10;نحن من {company}، نقدم لكم...&#10;&#10;المتغيرات المتاحة:&#10;{name} = اسم العميل&#10;{company} = اسم الشركة"></textarea>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-apple-subtext uppercase tracking-wider block mb-2">المستهدفون</label>
+                            <div class="flex gap-3">
+                                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="radio" name="wa-target" value="all" checked class="accent-green-600"> الكل
+                                </label>
+                                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="radio" name="wa-target" value="new" class="accent-green-600"> الجدد فقط
+                                </label>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 rounded-xl p-3 text-xs text-blue-700">
+                            ⚠️ يتم الإرسال بفترات متباعدة تلقائياً لتجنب الحظر (3-5 ثواني بين كل رسالة)
+                        </div>
+                        <button id="send-wa-btn" class="w-full btn-wa py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
+                            <i class="fa-brands fa-whatsapp"></i> إرسال للكل
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WhatsApp Campaign Progress -->
+            <div class="mt-5 bg-white rounded-2xl shadow-apple border border-apple-border/30 p-5">
+                <h3 class="text-sm font-bold text-apple-text mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-green-500"></i> تقدم حملة الواتساب
+                </h3>
+                <div id="wa-campaign-status" class="text-apple-subtext text-sm py-4 text-center">
+                    <i class="fa-brands fa-whatsapp text-3xl mb-2 block opacity-20"></i>
+                    لا توجد حملة واتساب نشطة
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ===== EMAIL MODAL ===== -->
+<div id="email-modal" class="modal hidden">
+    <div class="modal-card">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold text-apple-text">إرسال إيميل جماعي</h3>
+            <button onclick="closeModal('email-modal')" class="text-apple-subtext hover:text-apple-text w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <input type="text" id="modal-email-subject" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400" placeholder="موضوع الإيميل">
+            <textarea id="modal-email-body" rows="6" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 resize-none" placeholder="نص الرسالة... استخدم {name} و{company}"></textarea>
+            <button onclick="sendEmailCampaign(true)" class="w-full btn-primary py-3 rounded-xl font-bold">
+                <i class="fa-solid fa-paper-plane"></i> إرسال للكل الآن
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>
