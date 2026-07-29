@@ -235,9 +235,39 @@
                                 <option value="yellowpages">📒 الصفحات الصفراء (دليل)</option>
                             </select>
                             
-                            <input type="text" id="scrape-query" class="flex-1 bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium" placeholder="عن ماذا تبحث؟ (مثال: عيادات أسنان، شركات برمجة)">
+                            <div class="flex-1 flex gap-2 flex-col lg:flex-row">
+                                <select id="query-select" onchange="if(this.value==='custom') { document.getElementById('scrape-query').classList.remove('hidden'); document.getElementById('scrape-query').value=''; document.getElementById('scrape-query').focus(); } else { document.getElementById('scrape-query').classList.add('hidden'); document.getElementById('scrape-query').value = this.value; }" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium">
+                                    <option value="" disabled selected>اختر المجال بدقة...</option>
+                                    <option value="عيادات أسنان ومراكز طبية">عيادات أسنان ومراكز طبية</option>
+                                    <option value="مطاعم ومقاهي">مطاعم ومقاهي</option>
+                                    <option value="شركات مقاولات وبناء">شركات مقاولات وبناء</option>
+                                    <option value="مكاتب محاماة">مكاتب محاماة</option>
+                                    <option value="شركات عقارات">شركات عقارات</option>
+                                    <option value="صالونات تجميل وعناية">صالونات تجميل وعناية</option>
+                                    <option value="مراكز تدريب وتعليم">مراكز تدريب وتعليم</option>
+                                    <option value="شركات سياحة وسفر">شركات سياحة وسفر</option>
+                                    <option value="شركات تسويق وبرمجة">شركات تسويق وبرمجة</option>
+                                    <option value="custom">✍️ مجال آخر (كتابة يدوية)</option>
+                                </select>
+                                <input type="text" id="scrape-query" class="hidden w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium" placeholder="اكتب المجال الخاص بك...">
+                            </div>
                             
-                            <input type="text" id="scrape-location" class="w-full lg:w-1/4 bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium" placeholder="المكان (مثال: دبي، القاهرة)">
+                            <div class="w-full lg:w-1/3 flex gap-2 flex-col lg:flex-row">
+                                <select id="location-select" onchange="if(this.value==='custom') { document.getElementById('scrape-location').classList.remove('hidden'); document.getElementById('scrape-location').value=''; document.getElementById('scrape-location').focus(); } else { document.getElementById('scrape-location').classList.add('hidden'); document.getElementById('scrape-location').value = this.value; }" class="w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium">
+                                    <option value="" disabled selected>اختر المدينة...</option>
+                                    <option value="الرياض">الرياض، السعودية</option>
+                                    <option value="جدة">جدة، السعودية</option>
+                                    <option value="دبي">دبي، الإمارات</option>
+                                    <option value="أبوظبي">أبوظبي، الإمارات</option>
+                                    <option value="الدوحة">الدوحة، قطر</option>
+                                    <option value="الكويت">الكويت</option>
+                                    <option value="القاهرة">القاهرة، مصر</option>
+                                    <option value="المنامة">المنامة، البحرين</option>
+                                    <option value="مسقط">مسقط، عمان</option>
+                                    <option value="custom">✍️ مدينة أخرى (كتابة)</option>
+                                </select>
+                                <input type="text" id="scrape-location" class="hidden w-full bg-apple-bg border border-apple-border rounded-xl px-4 py-3.5 text-apple-text focus:outline-none focus:border-apple-blue focus:bg-white font-medium" placeholder="اسم المدينة...">
+                            </div>
                             
                             <button id="start-scrape-btn" class="w-full lg:w-auto btn-primary px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md">
                                 <i class="fa-solid fa-play"></i> بدء السحب
