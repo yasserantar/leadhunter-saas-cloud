@@ -63,11 +63,11 @@ function isWorkDay() {
  * @param {string} campaignId - رقم الحملة
  * @returns {Array} - قائمة العملاء
  */
-function getPendingLeads(campaignId) {
+async function getPendingLeads(campaignId) {
   const db = getDb();
 
   // بنجيب العملاء اللي لسه مش اتبعتلهم إيميل
-  const leads = db.prepare(`
+  const leads = await db.prepare(`
     SELECT l.*, cl.status as campaign_status
     FROM campaign_leads cl
     JOIN leads l ON cl.lead_id = l.id
@@ -117,7 +117,7 @@ async function processOneEmail(campaignId, lead, template) {
 
     // بنحدث حالة العميل في الحملة
     const newStatus = result.success ? 'sent' : 'failed';
-    db.prepare(`
+    await db.prepare(`
       UPDATE campaign_leads
       SET status = ?
       WHERE campaign_id = ? AND lead_id = ?
@@ -128,7 +128,7 @@ async function processOneEmail(campaignId, lead, template) {
     console.error(`❌ خطأ في معالجة إيميل ${lead.email}:`, error.message);
 
     // بنسجل الفشل
-    db.prepare(`
+    await db.prepare(`
       UPDATE campaign_leads
       SET status = 'failed'
       WHERE campaign_id = ? AND lead_id = ?
@@ -154,27 +154,27 @@ async function processCampaign(campaignId) {
   }
 
   // بنجيب بيانات الحملة والقالب
-  const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
+  const campaign = await db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
   if (!campaign) {
     console.error(`❌ الحملة ${campaignId} مش موجودة`);
     activeCampaigns.delete(campaignId);
     return;
   }
 
-  const template = db.prepare('SELECT * FROM email_templates WHERE id = ?').get(campaign.template_id);
+  const template = await db.prepare('SELECT * FROM email_templates WHERE id = ?').get(campaign.template_id);
   if (!template) {
     console.error(`❌ القالب ${campaign.template_id} مش موجود`);
-    db.prepare("UPDATE campaigns SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+    await db.prepare("UPDATE campaigns SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
     activeCampaigns.delete(campaignId);
     return;
   }
 
   // بنجيب العملاء اللي لسه مش اتبعتلهم
-  const pendingLeads = getPendingLeads(campaignId);
+  const pendingLeads = await getPendingLeads(campaignId);
 
   if (pendingLeads.length === 0) {
     console.log(`✅ الحملة "${campaign.name}" خلصت - كل الإيميلات اتبعتت`);
-    db.prepare("UPDATE campaigns SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+    await db.prepare("UPDATE campaigns SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
     activeCampaigns.delete(campaignId);
     return;
   }
@@ -220,10 +220,10 @@ async function processCampaign(campaignId) {
   }
 
   // لو وصلنا هنا يبقى الحملة خلصت
-  const remaining = getPendingLeads(campaignId);
+  const remaining = await getPendingLeads(campaignId);
   if (remaining.length === 0) {
     console.log(`🎉 الحملة "${campaign.name}" خلصت بنجاح!`);
-    db.prepare("UPDATE campaigns SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+    await db.prepare("UPDATE campaigns SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
     activeCampaigns.delete(campaignId);
   }
 }
@@ -239,7 +239,7 @@ async function startCampaign(campaignId) {
   const db = getDb();
 
   // بنجيب بيانات الحملة
-  const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
+  const campaign = await db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
   if (!campaign) {
     return { success: false, message: 'الحملة مش موجودة' };
   }
@@ -255,7 +255,7 @@ async function startCampaign(campaignId) {
   }
 
   // بنشيك على العملاء المرتبطين بالحملة
-  const leadsCount = db.prepare(`
+  const leadsCount = await db.prepare(`
     SELECT COUNT(*) as count
     FROM campaign_leads
     WHERE campaign_id = ?
@@ -266,7 +266,7 @@ async function startCampaign(campaignId) {
   }
 
   // بنحدث حالة الحملة
-  db.prepare("UPDATE campaigns SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+  await db.prepare("UPDATE campaigns SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
 
   // بنسجل الحملة في القائمة النشطة
   activeCampaigns.set(campaignId, {
@@ -278,9 +278,9 @@ async function startCampaign(campaignId) {
   console.log(`🚀 الحملة "${campaign.name}" بدأت!`);
 
   // بنبدأ المعالجة في الخلفية (مش بنستنى)
-  processCampaign(campaignId).catch(error => {
+  processCampaign(campaignId).catch(async error => {
     console.error(`❌ خطأ في الحملة "${campaign.name}":`, error.message);
-    db.prepare("UPDATE campaigns SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+    await db.prepare("UPDATE campaigns SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
     activeCampaigns.delete(campaignId);
   });
 
@@ -309,7 +309,7 @@ async function pauseCampaign(campaignId) {
   state.status = 'paused';
   activeCampaigns.set(campaignId, state);
 
-  db.prepare("UPDATE campaigns SET status = 'paused', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+  await db.prepare("UPDATE campaigns SET status = 'paused', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
 
   console.log(`⏸️ الحملة اتعملها pause`);
 
@@ -328,7 +328,7 @@ async function stopCampaign(campaignId) {
   // بنشيل الحملة من القائمة النشطة
   activeCampaigns.delete(campaignId);
 
-  db.prepare("UPDATE campaigns SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
+  await db.prepare("UPDATE campaigns SET status = 'stopped', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(campaignId);
 
   console.log(`🛑 الحملة اتوقفت نهائياً`);
 
@@ -341,16 +341,16 @@ async function stopCampaign(campaignId) {
  * @param {string} campaignId - رقم الحملة
  * @returns {Object} - حالة الحملة بالتفاصيل
  */
-function getCampaignStatus(campaignId) {
+async function getCampaignStatus(campaignId) {
   const db = getDb();
 
-  const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
+  const campaign = await db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
   if (!campaign) {
     return { found: false, message: 'الحملة مش موجودة' };
   }
 
   // بنجيب إحصائيات مفصلة
-  const stats = db.prepare(`
+  const stats = await db.prepare(`
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -376,7 +376,7 @@ function getCampaignStatus(campaignId) {
 
 // ========== Cron Job - بنشيك على الحملات كل 5 دقايق ==========
 // لو فيه حملات متوقفة عشان ساعات العمل، بنكملها لما تيجي ساعات العمل
-const campaignChecker = cron.schedule('*/5 9-17 * * 0-4', () => {
+const campaignChecker = cron.schedule('*/5 9-17 * * 0-4', async () => {
   // بنشيك في ساعات العمل فقط (9-17 من الأحد للخميس)
   if (!isBusinessHours() || !isWorkDay()) return;
 
@@ -384,7 +384,7 @@ const campaignChecker = cron.schedule('*/5 9-17 * * 0-4', () => {
 
   // بنجيب الحملات اللي حالتها running بس مش في القائمة النشطة
   // ده معناه إنها اتوقفت عشان ساعات العمل خلصت
-  const runningCampaigns = db.prepare(`
+  const runningCampaigns = await db.prepare(`
     SELECT id FROM campaigns WHERE status = 'running'
   `).all();
 

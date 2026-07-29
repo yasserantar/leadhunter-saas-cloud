@@ -56,10 +56,10 @@ async function verifySmtpConnection() {
  *
  * @returns {number} - عدد الإيميلات اللي اتبعتت
  */
-function getSentTodayCount() {
+async function getSentTodayCount() {
   const db = getDb();
 
-  const result = db.prepare(`
+  const result = await db.prepare(`
     SELECT COUNT(*) as count
     FROM email_logs
     WHERE status = 'sent'
@@ -74,9 +74,9 @@ function getSentTodayCount() {
  * @param {string} email - الإيميل
  * @returns {boolean} - هل عمل unsubscribe ولا لا
  */
-function isUnsubscribed(email) {
+async function isUnsubscribed(email) {
   const db = getDb();
-  const result = db.prepare('SELECT COUNT(*) as count FROM unsubscribes WHERE email = ?').get(email);
+  const result = await db.prepare('SELECT COUNT(*) as count FROM unsubscribes WHERE email = ?').get(email);
   return result.count > 0;
 }
 
@@ -174,7 +174,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
       console.warn(`⚠️ ${error}`);
 
       // بنسجل المحاولة الفاشلة
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO email_logs (id, campaign_id, lead_id, to_email, subject, status, error, created_at)
         VALUES (?, ?, ?, ?, ?, 'failed', ?, CURRENT_TIMESTAMP)
       `).run(logId, campaignId, leadId, to, subject, error);
@@ -187,7 +187,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
       const error = 'الإيميل ده عمل إلغاء اشتراك';
       console.log(`🚫 ${error}: ${to}`);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO email_logs (id, campaign_id, lead_id, to_email, subject, status, error, created_at)
         VALUES (?, ?, ?, ?, ?, 'skipped', ?, CURRENT_TIMESTAMP)
       `).run(logId, campaignId, leadId, to, subject, error);
@@ -207,7 +207,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
     processedBody = addTrackingPixel(processedBody, logId);
 
     // بنسجل الإيميل قبل الإرسال (status: pending)
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO email_logs (id, campaign_id, lead_id, to_email, subject, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
     `).run(logId, campaignId, leadId, to, processedSubject);
@@ -237,7 +237,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
     const info = await transport.sendMail(mailOptions);
 
     // بنحدث السجل بعد الإرسال الناجح
-    db.prepare(`
+    await db.prepare(`
       UPDATE email_logs
       SET status = 'sent', sent_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -245,7 +245,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
 
     // لو فيه campaign، بنحدث العداد
     if (campaignId) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE campaigns
         SET sent_count = sent_count + 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
@@ -264,7 +264,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
     console.error(`❌ فشل إرسال إيميل لـ ${to}:`, error.message);
 
     // بنحدث السجل بالخطأ
-    db.prepare(`
+    await db.prepare(`
       UPDATE email_logs
       SET status = 'failed', error = ?
       WHERE id = ?
@@ -272,7 +272,7 @@ async function sendEmail(to, subject, htmlBody, campaignId = null, leadId = null
 
     // لو فيه campaign، بنزود عداد الـ bounce
     if (campaignId) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE campaigns
         SET bounce_count = bounce_count + 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?

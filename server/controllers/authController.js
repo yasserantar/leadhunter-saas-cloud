@@ -13,7 +13,7 @@ const register = async (req, res) => {
     const db = getDb();
     
     // Check if email exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existingUser = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existingUser) {
       return res.status(400).json({ success: false, error: 'Email already exists.' });
     }
@@ -28,7 +28,7 @@ const register = async (req, res) => {
         userRole = 'admin';
     }
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, name, email, password_hash, role)
       VALUES (?, ?, ?, ?, ?)
     `).run(id, name, email, passwordHash, userRole);
@@ -51,7 +51,7 @@ const login = async (req, res) => {
 
     const db = getDb();
     
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.status(401).json({ success: false, error: 'Invalid email or password.' });
     }

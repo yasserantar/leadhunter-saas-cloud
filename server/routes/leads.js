@@ -6,7 +6,7 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 // ============================================================
 // GET /api/leads - جلب كل العملاء المحفوظين للمستخدم
 // ============================================================
-router.get('/', verifyToken, (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const db = getDb();
     const page = parseInt(req.query.page) || 1;
@@ -28,10 +28,10 @@ router.get('/', verifyToken, (req, res) => {
       params.push(status);
     }
 
-    const countRow = db.prepare(`SELECT COUNT(*) as total FROM leads l ${whereClause}`).get(...params);
+    const countRow = await db.prepare(`SELECT COUNT(*) as total FROM leads l ${whereClause}`).get(...params);
     const total = countRow.total;
 
-    const leads = db.prepare(`
+    const leads = await db.prepare(`
       SELECT l.*, 
         CASE WHEN l.email != '' AND l.email IS NOT NULL THEN 1 ELSE 0 END as has_email,
         CASE WHEN l.phone != '' AND l.phone IS NOT NULL THEN 1 ELSE 0 END as has_phone
@@ -60,20 +60,20 @@ router.get('/', verifyToken, (req, res) => {
 // ============================================================
 // GET /api/leads/stats - إحصائيات شاملة
 // ============================================================
-router.get('/stats', verifyToken, (req, res) => {
+router.get('/stats', verifyToken, async (req, res) => {
   try {
     const db = getDb();
     const uid = req.userId;
 
-    const total = db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ?`).get(uid).n;
-    const withEmail = db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND email != '' AND email IS NOT NULL`).get(uid).n;
-    const withPhone = db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND phone != '' AND phone IS NOT NULL`).get(uid).n;
-    const withWebsite = db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND website != '' AND website IS NOT NULL`).get(uid).n;
-    const sentEmail = db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'emailed'`).get(uid).n;
-    const sentWhatsapp = db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'whatsapped'`).get(uid).n;
+    const total = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ?`).get(uid).n;
+    const withEmail = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND email != '' AND email IS NOT NULL`).get(uid).n;
+    const withPhone = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND phone != '' AND phone IS NOT NULL`).get(uid).n;
+    const withWebsite = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND website != '' AND website IS NOT NULL`).get(uid).n;
+    const sentEmail = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'emailed'`).get(uid).n;
+    const sentWhatsapp = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'whatsapped'`).get(uid).n;
 
     // By source
-    const bySource = db.prepare(`
+    const bySource = await db.prepare(`
       SELECT source, COUNT(*) as count FROM leads WHERE user_id = ? GROUP BY source
     `).all(uid);
 
@@ -90,10 +90,10 @@ router.get('/stats', verifyToken, (req, res) => {
 // ============================================================
 // DELETE /api/leads/:id - حذف عميل
 // ============================================================
-router.delete('/:id', verifyToken, (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const db = getDb();
-    db.prepare(`DELETE FROM leads WHERE id = ? AND user_id = ?`).run(req.params.id, req.userId);
+    await db.prepare(`DELETE FROM leads WHERE id = ? AND user_id = ?`).run(req.params.id, req.userId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -103,17 +103,14 @@ router.delete('/:id', verifyToken, (req, res) => {
 // ============================================================
 // DELETE /api/leads/bulk - حذف متعدد
 // ============================================================
-router.post('/delete-bulk', verifyToken, (req, res) => {
+router.post('/delete-bulk', verifyToken, async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids || !ids.length) return res.status(400).json({ success: false, error: 'No IDs provided' });
     
     const db = getDb();
-    const del = db.prepare(`DELETE FROM leads WHERE id = ? AND user_id = ?`);
-    const deleteAll = db.transaction((ids) => {
-      for (const id of ids) del.run(id, req.userId);
-    });
-    deleteAll(ids);
+    const del = await db.prepare(`DELETE FROM leads WHERE id = ? AND user_id = ?`);
+    for (const id of ids) { await del.run(id, req.userId); }
     
     res.json({ success: true, deleted: ids.length });
   } catch (err) {
@@ -124,12 +121,12 @@ router.post('/delete-bulk', verifyToken, (req, res) => {
 // ============================================================
 // PUT /api/leads/:id - تحديث بيانات عميل
 // ============================================================
-router.put('/:id', verifyToken, (req, res) => {
+router.put('/:id', verifyToken, async (req, res) => {
   try {
     const db = getDb();
     const { name, email, phone, whatsapp, website, address, status, notes } = req.body;
     
-    db.prepare(`
+    await db.prepare(`
       UPDATE leads 
       SET name = ?, email = ?, phone = ?, whatsapp = ?, website = ?, address = ?, status = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND user_id = ?

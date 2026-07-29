@@ -21,12 +21,12 @@ router.post('/send-email', verifyToken, async (req, res) => {
     // Get leads to send to
     let leads;
     if (send_to_all) {
-      leads = db.prepare(`
+      leads = await db.prepare(`
         SELECT * FROM leads WHERE user_id = ? AND email != '' AND email IS NOT NULL
       `).all(req.userId);
     } else if (lead_ids && lead_ids.length) {
       const placeholders = lead_ids.map(() => '?').join(',');
-      leads = db.prepare(`
+      leads = await db.prepare(`
         SELECT * FROM leads WHERE id IN (${placeholders}) AND user_id = ? AND email != ''
       `).all(...lead_ids, req.userId);
     } else {
@@ -60,7 +60,7 @@ router.post('/send-email', verifyToken, async (req, res) => {
 
     // Create campaign record
     const campaignId = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO campaigns (id, user_id, name, type, status, total_leads)
       VALUES (?, ?, ?, 'email', 'running', ?)
     `).run(campaignId, req.userId, subject, leads.length);
@@ -95,7 +95,7 @@ router.post('/send-email', verifyToken, async (req, res) => {
         });
 
         // Update lead status
-        db.prepare(`UPDATE leads SET status = 'emailed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
+        await db.prepare(`UPDATE leads SET status = 'emailed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
         sentCount++;
 
         if (global.io) {
@@ -115,7 +115,7 @@ router.post('/send-email', verifyToken, async (req, res) => {
         failedCount++;
         console.error(`[Email] Failed for ${lead.email}: ${err.message}`);
         
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO campaign_logs (id, campaign_id, lead_id, type, status, error, sent_at)
           VALUES (?, ?, ?, 'email', 'failed', ?, CURRENT_TIMESTAMP)
         `).run(uuidv4(), campaignId, lead.id, err.message);
@@ -123,7 +123,7 @@ router.post('/send-email', verifyToken, async (req, res) => {
     }
 
     // Update campaign status
-    db.prepare(`
+    await db.prepare(`
       UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?
     `).run(sentCount, campaignId);
 
@@ -161,12 +161,12 @@ router.post('/send-whatsapp', verifyToken, async (req, res) => {
     
     let leads;
     if (send_to_all) {
-      leads = db.prepare(`
+      leads = await db.prepare(`
         SELECT * FROM leads WHERE user_id = ? AND (phone != '' OR whatsapp != '')
       `).all(req.userId);
     } else if (lead_ids && lead_ids.length) {
       const placeholders = lead_ids.map(() => '?').join(',');
-      leads = db.prepare(`
+      leads = await db.prepare(`
         SELECT * FROM leads WHERE id IN (${placeholders}) AND user_id = ?
       `).all(...lead_ids, req.userId);
     } else {
@@ -188,7 +188,7 @@ router.post('/send-whatsapp', verifyToken, async (req, res) => {
     }
 
     const campaignId = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO campaigns (id, user_id, name, type, status, total_leads)
       VALUES (?, ?, ?, 'whatsapp', 'running', ?)
     `).run(campaignId, req.userId, `WhatsApp - ${new Date().toLocaleDateString('ar')}`, leads.length);
@@ -216,7 +216,7 @@ router.post('/send-whatsapp', verifyToken, async (req, res) => {
         const chatId = `${phone}@c.us`;
         await waClient.sendMessage(chatId, personalMsg);
 
-        db.prepare(`UPDATE leads SET status = 'whatsapped', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
+        await db.prepare(`UPDATE leads SET status = 'whatsapped', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
         sentCount++;
 
         if (global.io) {
@@ -238,7 +238,7 @@ router.post('/send-whatsapp', verifyToken, async (req, res) => {
       }
     }
 
-    db.prepare(`UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?`).run(sentCount, campaignId);
+    await db.prepare(`UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?`).run(sentCount, campaignId);
 
     if (global.io) {
       global.io.emit('campaign_progress', {
@@ -260,10 +260,10 @@ router.post('/send-whatsapp', verifyToken, async (req, res) => {
 });
 
 // GET /api/campaigns - قائمة الحملات
-router.get('/', verifyToken, (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const db = getDb();
-    const campaigns = db.prepare(`
+    const campaigns = await db.prepare(`
       SELECT * FROM campaigns WHERE user_id = ? ORDER BY created_at DESC LIMIT 20
     `).all(req.userId);
     res.json({ success: true, data: campaigns });

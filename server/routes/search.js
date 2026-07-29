@@ -47,7 +47,7 @@ router.post('/live-scrape', verifyToken, async (req, res) => {
     const db = getDb();
     let savedCount = 0;
     
-    const insertLead = db.prepare(`
+    const insertLead = await db.prepare(`
       INSERT OR IGNORE INTO leads 
         (id, user_id, name, email, company, phone, whatsapp, website, address, category, source, 
          facebook, instagram, twitter, linkedin, youtube, tiktok, rating, status)

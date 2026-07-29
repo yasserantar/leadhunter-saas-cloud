@@ -8,10 +8,10 @@ router.use(verifyToken);
 router.use(verifyAdmin);
 
 // Get all users
-router.get('/users', (req, res) => {
+router.get('/users',  async (req, res) => {
     try {
         const db = getDb();
-        const users = db.prepare('SELECT id, name, email, role, status, subscription_plan, created_at FROM users').all();
+        const users = await db.prepare('SELECT id, name, email, role, status, subscription_plan, created_at FROM users').all();
         res.json({ success: true, data: users });
     } catch (error) {
         console.error(error);
@@ -20,11 +20,11 @@ router.get('/users', (req, res) => {
 });
 
 // Update user status (active/suspended)
-router.post('/users/:id/status', (req, res) => {
+router.post('/users/:id/status',  async (req, res) => {
     try {
         const { status } = req.body;
         const db = getDb();
-        db.prepare('UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, req.params.id);
+        await db.prepare('UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, req.params.id);
         res.json({ success: true, message: 'User status updated' });
     } catch (error) {
         console.error(error);
@@ -33,7 +33,7 @@ router.post('/users/:id/status', (req, res) => {
 });
 
 // Trigger manual backup
-router.post('/backup', (req, res) => {
+router.post('/backup',  async (req, res) => {
     try {
         backupDatabase();
         res.json({ success: true, message: 'Backup triggered successfully' });

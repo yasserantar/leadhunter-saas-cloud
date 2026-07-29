@@ -15,7 +15,7 @@ async function sendAutoCampaign(leadIds, userId) {
     
     // Fetch leads
     const placeholders = leadIds.map(() => '?').join(',');
-    const leads = db.prepare(`
+    const leads = await db.prepare(`
       SELECT * FROM leads WHERE id IN (${placeholders}) AND user_id = ?
     `).all(...leadIds, userId);
 
@@ -61,7 +61,7 @@ async function sendAutoCampaign(leadIds, userId) {
             `;
 
             const campaignId = uuidv4();
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO campaigns (id, user_id, name, type, status, total_leads)
                 VALUES (?, ?, ?, 'email', 'running', ?)
             `).run(campaignId, userId, "Auto Email Campaign", leadsWithEmail.length);
@@ -82,7 +82,7 @@ async function sendAutoCampaign(leadIds, userId) {
                         html: `<div dir="rtl" style="font-family: Arial, sans-serif; line-height: 1.6;">${personalBody.replace(/\n/g, '<br>')}</div>`
                     });
 
-                    db.prepare(`UPDATE leads SET status = 'emailed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
+                    await db.prepare(`UPDATE leads SET status = 'emailed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
                     emailSentCount++;
 
                     if (global.io) {
@@ -101,7 +101,7 @@ async function sendAutoCampaign(leadIds, userId) {
                     console.error('[Auto-Pipeline Email Error]', err.message);
                 }
             }
-            db.prepare(`UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?`).run(emailSentCount, campaignId);
+            await db.prepare(`UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?`).run(emailSentCount, campaignId);
         } else {
             console.log('[Auto-Pipeline] No SMTP credentials provided, skipping email phase.');
         }
@@ -115,7 +115,7 @@ async function sendAutoCampaign(leadIds, userId) {
         const waMessage = `أهلاً {name} 👋\n\nنحن فريق التسويق، لاحظنا نشاط "{company}" ونرغب بتقديم حلولنا التقنية لمساعدتكم في زيادة مبيعاتكم بشكل ملحوظ.\nهل الوقت مناسب للتحدث؟`;
 
         const waCampaignId = uuidv4();
-        db.prepare(`
+        await db.prepare(`
             INSERT INTO campaigns (id, user_id, name, type, status, total_leads)
             VALUES (?, ?, ?, 'whatsapp', 'running', ?)
         `).run(waCampaignId, userId, "Auto WhatsApp Campaign", leadsWithPhone.length);
@@ -144,7 +144,7 @@ async function sendAutoCampaign(leadIds, userId) {
                 const chatId = `${phone}@c.us`;
                 await waClient.sendMessage(chatId, personalMsg);
 
-                db.prepare(`UPDATE leads SET status = 'whatsapped', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
+                await db.prepare(`UPDATE leads SET status = 'whatsapped', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(lead.id);
                 waSentCount++;
 
                 if (global.io) {
@@ -165,7 +165,7 @@ async function sendAutoCampaign(leadIds, userId) {
                 console.error('[Auto-Pipeline WA Error]', err.message);
             }
         }
-        db.prepare(`UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?`).run(waSentCount, waCampaignId);
+        await db.prepare(`UPDATE campaigns SET status = 'completed', sent_count = ? WHERE id = ?`).run(waSentCount, waCampaignId);
         
         if (global.io) {
             global.io.emit('campaign_progress', {

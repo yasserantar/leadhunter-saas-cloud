@@ -24,7 +24,7 @@ router.post('/personalized-message', verifyToken, async (req, res) => {
         if (!productDetails) return res.status(400).json({ error: 'تفاصيل المنتج مطلوبة' });
 
         const db = getDb();
-        const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(leadId);
+        const lead = await db.prepare('SELECT * FROM leads WHERE id = ?').get(leadId);
         if (!lead) return res.status(404).json({ error: 'العميل غير موجود' });
 
         const message = await aiService.generatePersonalizedMessage(lead, productDetails);

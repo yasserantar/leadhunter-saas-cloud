@@ -4,12 +4,12 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 const { initWhatsApp, getStatus, disconnectWhatsApp } = require('../services/whatsapp-sender');
 
 // GET /api/whatsapp/status
-router.get('/status', verifyToken, (req, res) => {
+router.get('/status', verifyToken, async (req, res) => {
   res.json({ success: true, ...getStatus() });
 });
 
 // POST /api/whatsapp/connect - ابدأ اتصال واتساب وجيب QR
-router.post('/connect', verifyToken, (req, res) => {
+router.post('/connect', verifyToken, async (req, res) => {
   const { status } = getStatus();
   if (status === 'connected') {
     return res.json({ success: true, message: 'واتساب متصل بالفعل ✅' });
@@ -19,7 +19,7 @@ router.post('/connect', verifyToken, (req, res) => {
 });
 
 // POST /api/whatsapp/disconnect
-router.post('/disconnect', verifyToken, (req, res) => {
+router.post('/disconnect', verifyToken, async (req, res) => {
   disconnectWhatsApp();
   res.json({ success: true, message: 'تم قطع الاتصال' });
 });

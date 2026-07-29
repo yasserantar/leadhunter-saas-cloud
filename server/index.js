@@ -60,18 +60,19 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => console.log('❌ Client disconnected:', socket.id));
 });
 
-// Init DB
-initDb();
-
-const PORT = process.env.PORT || 3000;
-const server = httpServer.listen(PORT, () => {
-  console.log('==================================================');
-  console.log('🤖 LeadHunter Pro V4.0 AI - FULL SYSTEM STARTED');
-  console.log(`🚀 http://localhost:${PORT}`);
-  console.log('📋 APIs: /auth /search /leads /campaigns /whatsapp');
-  console.log('==================================================');
-});
-server.setTimeout(600000); // 10 minutes timeout
+async function startServer() {
+  await initDb();
+  const PORT = process.env.PORT || 3000;
+  const server = httpServer.listen(PORT, () => {
+    console.log('==================================================');
+    console.log('🤖 LeadHunter Pro V4.0 AI - FULL SYSTEM STARTED');
+    console.log(`🚀 http://localhost:${PORT}`);
+    console.log('📋 APIs: /auth /search /leads /campaigns /whatsapp');
+    console.log('==================================================');
+  });
+  server.setTimeout(600000); // 10 minutes timeout
+}
+startServer();
 
 // Pass IO + WhatsApp to global namespace
 global.io = io;
