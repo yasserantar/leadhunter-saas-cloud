@@ -77,3 +77,10 @@ server.setTimeout(600000); // 10 minutes timeout
 global.io = io;
 global.whatsappReady = false;
 global.whatsappClient = null;
+
+// Self-Ping to prevent Render from sleeping (Free Tier bypass)
+const axios = require('axios');
+setInterval(() => {
+  axios.get('https://leadhunter-pro-saas.onrender.com').catch(() => {});
+  console.log('⚡ Sent keep-awake ping to server');
+}, 10 * 60 * 1000); // Every 10 minutes
