@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # تثبيت الحزم اللازمة لـ Puppeteer ومحرك SQLite
 RUN apk add --no-cache \
