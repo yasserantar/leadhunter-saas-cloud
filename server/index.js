@@ -40,7 +40,8 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../public')));
 
 const aiRoutes = require('./routes/ai');
 
