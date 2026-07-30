@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 router.get('/',  async (req, res) => {
     try {
         const db = getDb();
-        const templates = await db.prepare('SELECT * FROM email_templates ORDER BY created_at DESC').all();
+        const templates = await db.prepare('SELECT * FROM templates ORDER BY created_at DESC').all();
         res.json({ success: true, data: templates });
     } catch (error) {
         console.error('Error fetching templates:', error);
@@ -19,7 +19,7 @@ router.get('/',  async (req, res) => {
 router.get('/:id',  async (req, res) => {
     try {
         const db = getDb();
-        const template = await db.prepare('SELECT * FROM email_templates WHERE id = ?').get(req.params.id);
+        const template = await db.prepare('SELECT * FROM templates WHERE id = ?').get(req.params.id);
         
         if (!template) {
             return res.status(404).json({ success: false, error: 'القالب غير موجود' });
@@ -35,17 +35,17 @@ router.get('/:id',  async (req, res) => {
 router.post('/',  async (req, res) => {
     try {
         const db = getDb();
-        const { name, subject, body_html, category, language, variables } = req.body;
+        const { name, subject, body_text, category, language, variables } = req.body;
 
-        if (!name || !subject || !body_html) {
+        if (!name || !subject || !body_text) {
             return res.status(400).json({ success: false, error: 'الاسم والموضوع والمحتوى مطلوبين' });
         }
 
         const id = uuidv4();
         await db.prepare(`
-            INSERT INTO email_templates (id, name, subject, body_html, category, language, variables)
+            INSERT INTO templates (id, name, subject, body_text, category, language, variables)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(id, name, subject, body_html, category || 'general', language || 'ar', variables || '');
+        `).run(id, name, subject, body_text, category || 'general', language || 'ar', variables || '');
 
         res.status(201).json({ success: true, message: 'تم إنشاء القالب بنجاح', data: { id } });
     } catch (error) {
@@ -58,17 +58,17 @@ router.post('/',  async (req, res) => {
 router.put('/:id',  async (req, res) => {
     try {
         const db = getDb();
-        const { name, subject, body_html, category, language, variables } = req.body;
+        const { name, subject, body_text, category, language, variables } = req.body;
 
-        if (!name || !subject || !body_html) {
+        if (!name || !subject || !body_text) {
             return res.status(400).json({ success: false, error: 'الاسم والموضوع والمحتوى مطلوبين' });
         }
 
         await db.prepare(`
-            UPDATE email_templates 
-            SET name = ?, subject = ?, body_html = ?, category = ?, language = ?, variables = ?
+            UPDATE templates 
+            SET name = ?, subject = ?, body_text = ?, category = ?, language = ?, variables = ?
             WHERE id = ?
-        `).run(name, subject, body_html, category, language, variables, req.params.id);
+        `).run(name, subject, body_text, category, language, variables, req.params.id);
 
         res.json({ success: true, message: 'تم تحديث القالب بنجاح' });
     } catch (error) {
@@ -88,7 +88,7 @@ router.delete('/:id',  async (req, res) => {
             return res.status(400).json({ success: false, error: 'لا يمكن حذف هذا القالب لأنه مستخدم في حملات موجودة' });
         }
 
-        await db.prepare('DELETE FROM email_templates WHERE id = ?').run(req.params.id);
+        await db.prepare('DELETE FROM templates WHERE id = ?').run(req.params.id);
         res.json({ success: true, message: 'تم حذف القالب بنجاح' });
     } catch (error) {
         console.error('Error deleting template:', error);

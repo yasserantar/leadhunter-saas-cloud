@@ -7,6 +7,8 @@ const searchRoutes = require('./routes/search');
 const leadsRoutes = require('./routes/leads');
 const campaignsRoutes = require('./routes/campaigns');
 const whatsappRoutes = require('./routes/whatsapp');
+const dashboardRoutes = require('./routes/dashboard');
+const templatesRoutes = require('./routes/templates');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 
@@ -52,6 +54,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/templates', templatesRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Socket.io Real-time Updates

@@ -56,12 +56,24 @@ console.log('Obfuscating Server Files...');
 obfuscateDirectory(path.join(__dirname, 'server'), path.join(__dirname, 'dist', 'server'));
 
 // Copy other necessary files
-console.log('Copying static assets...');
+function copyDirectory(src, dest) {
+    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+    const items = fs.readdirSync(src);
+    for (const item of items) {
+        const srcPath = path.join(src, item);
+        const destPath = path.join(dest, item);
+        if (fs.statSync(srcPath).isDirectory()) {
+            copyDirectory(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
+
+console.log('Copying static assets (Frontend)...');
 const publicSrc = path.join(__dirname, 'public');
 const publicDest = path.join(__dirname, 'dist', 'public');
-if (!fs.existsSync(publicDest)) fs.mkdirSync(publicDest, { recursive: true });
-// Simple copy for public (we can obfuscate public/js too if needed)
-obfuscateDirectory(publicSrc, publicDest); // This will obfuscate .js and copy others
+copyDirectory(publicSrc, publicDest);
 
 console.log('Copying index.js...');
 const indexSrc = path.join(__dirname, 'server', 'index.js');
