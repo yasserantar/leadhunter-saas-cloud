@@ -6,8 +6,10 @@ const { Pool } = require('pg');
 const dotenv = require('dotenv');
 dotenv.config();
 
+const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres.kdhdxydqmkbuztsumcfk:FCsc6CQpklug58BJ@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: dbUrl,
   ssl: { rejectUnauthorized: false } // Required for Supabase outside their network
 });
 
