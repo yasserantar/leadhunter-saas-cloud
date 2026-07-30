@@ -47,43 +47,42 @@ router.post('/live-scrape', verifyToken, async (req, res) => {
     const db = getDb();
     let savedCount = 0;
     
-    const insertLead = await db.prepare(`
-      INSERT OR IGNORE INTO leads 
+    const insertLead = db.prepare(`
+      INSERT INTO leads 
         (id, user_id, name, email, company, phone, whatsapp, website, address, category, source, 
          facebook, instagram, twitter, linkedin, youtube, tiktok, rating, status)
       VALUES 
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')
+      ON CONFLICT (id) DO NOTHING
     `);
 
-    const saveAll = db.transaction((leads) => {
-      for (const lead of leads) {
-        try {
-          insertLead.run(
-            lead.id || uuidv4(),
-            req.userId,
-            lead.name || 'Unknown',
-            lead.email || '',
-            lead.company || lead.name || '',
-            lead.phone || '',
-            lead.whatsapp || lead.phone || '',
-            lead.website || '',
-            lead.address || '',
-            lead.category || query,
-            lead.source || source,
-            lead.facebook || '',
-            lead.instagram || '',
-            lead.twitter || '',
-            lead.linkedin || '',
-            lead.youtube || '',
-            lead.tiktok || '',
-            lead.rating || null
-          );
-          savedCount++;
-        } catch(e) { /* duplicate - skip */ }
+    for (const lead of enriched) {
+      try {
+        await insertLead.run(
+          lead.id || uuidv4(),
+          req.userId,
+          lead.name || 'Unknown',
+          lead.email || '',
+          lead.company || lead.name || '',
+          lead.phone || '',
+          lead.whatsapp || lead.phone || '',
+          lead.website || '',
+          lead.address || '',
+          lead.category || query,
+          lead.source || source,
+          lead.facebook || '',
+          lead.instagram || '',
+          lead.twitter || '',
+          lead.linkedin || '',
+          lead.youtube || '',
+          lead.tiktok || '',
+          lead.rating || null
+        );
+        savedCount++;
+      } catch(e) { 
+        // duplicate or error - skip
       }
-    });
-
-    saveAll(enriched);
+    }
 
     const emailCount = enriched.filter(l => l.email).length;
     const phoneCount = enriched.filter(l => l.phone).length;
