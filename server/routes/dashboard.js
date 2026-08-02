@@ -8,19 +8,22 @@ router.get('/dashboard/stats',  async (req, res) => {
         const db = getDb();
         
         // Leads stats
-        const totalLeads = await db.prepare('SELECT COUNT(*) as count FROM leads').get().count;
         const leadsByStatusRows = await db.prepare('SELECT status, COUNT(*) as count FROM leads GROUP BY status').all();
         const leadsByStatus = {};
         leadsByStatusRows.forEach(row => { leadsByStatus[row.status] = row.count; });
-        
-        // Campaign stats
-        const activeCampaigns = await db.prepare("SELECT COUNT(*) as count FROM campaigns WHERE status = 'running'").get().count;
-        
-        // Email stats
-        const totalSentEmails = await db.prepare('SELECT COUNT(*) as count FROM email_logs WHERE sent_at IS NOT NULL').get().count;
-        const totalOpenedEmails = await db.prepare('SELECT COUNT(*) as count FROM email_logs WHERE opened_at IS NOT NULL').get().count;
-        const totalClickedEmails = await db.prepare('SELECT COUNT(*) as count FROM email_logs WHERE clicked_at IS NOT NULL').get().count;
-        const totalRepliedEmails = await db.prepare("SELECT COUNT(*) as count FROM email_logs WHERE status = 'replied'").get().count;
+        const tlRow = await db.prepare('SELECT COUNT(*) as count FROM leads').get();
+        const acRow = await db.prepare("SELECT COUNT(*) as count FROM campaigns WHERE status = 'running'").get();
+        const teRow = await db.prepare('SELECT COUNT(*) as count FROM email_logs WHERE sent_at IS NOT NULL').get();
+        const toRow = await db.prepare('SELECT COUNT(*) as count FROM email_logs WHERE opened_at IS NOT NULL').get();
+        const tcRow = await db.prepare('SELECT COUNT(*) as count FROM email_logs WHERE clicked_at IS NOT NULL').get();
+        const trRow = await db.prepare("SELECT COUNT(*) as count FROM email_logs WHERE status = 'replied'").get();
+
+        const totalLeads = tlRow ? tlRow.count : 0;
+        const activeCampaigns = acRow ? acRow.count : 0;
+        const totalSentEmails = teRow ? teRow.count : 0;
+        const totalOpenedEmails = toRow ? toRow.count : 0;
+        const totalClickedEmails = tcRow ? tcRow.count : 0;
+        const totalRepliedEmails = trRow ? trRow.count : 0;
         
         // Open Rate
         const openRate = totalSentEmails > 0 ? ((totalOpenedEmails / totalSentEmails) * 100).toFixed(1) : 0;

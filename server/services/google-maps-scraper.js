@@ -36,7 +36,28 @@ const searchBusinesses = async (query, location, limit = 100) => {
       timeout: 60000
     });
 
-    await page.waitForSelector('a[href*="/maps/place/"]', { timeout: 15000 });
+    try {
+      // Check for Google Cookie Consent (often appears on cloud servers in EU)
+      const consentBtn = await page.$('button[aria-label="Accept all"], button[aria-label="موافق"], form[action*="consent"] button');
+      if (consentBtn) {
+        console.log('[Google Maps] Found consent dialog, accepting...');
+        await consentBtn.click();
+        await sleep(2000);
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      await page.waitForSelector('a[href*="/maps/place/"]', { timeout: 15000 });
+    } catch (e) {
+      console.log('[Google Maps] Selector not found, checking if we are on a direct place page or blocked...');
+      const url = page.url();
+      if (!url.includes('/maps/search')) {
+         console.log('[Google Maps] URL changed, might be a direct place or error.');
+      }
+      throw e;
+    }
     
     let lastCount = 0;
     let scrollAttempts = 0;

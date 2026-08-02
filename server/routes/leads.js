@@ -65,12 +65,19 @@ router.get('/stats', verifyToken, async (req, res) => {
     const db = getDb();
     const uid = req.userId;
 
-    const total = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ?`).get(uid).n;
-    const withEmail = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND email != '' AND email IS NOT NULL`).get(uid).n;
-    const withPhone = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND phone != '' AND phone IS NOT NULL`).get(uid).n;
-    const withWebsite = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND website != '' AND website IS NOT NULL`).get(uid).n;
-    const sentEmail = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'emailed'`).get(uid).n;
-    const sentWhatsapp = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'whatsapped'`).get(uid).n;
+    const totalRow = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ?`).get(uid);
+    const withEmailRow = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND email != '' AND email IS NOT NULL`).get(uid);
+    const withPhoneRow = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND phone != '' AND phone IS NOT NULL`).get(uid);
+    const withWebsiteRow = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND website != '' AND website IS NOT NULL`).get(uid);
+    const sentEmailRow = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'emailed'`).get(uid);
+    const sentWhatsappRow = await db.prepare(`SELECT COUNT(*) as n FROM leads WHERE user_id = ? AND status = 'whatsapped'`).get(uid);
+
+    const total = totalRow.n;
+    const withEmail = withEmailRow.n;
+    const withPhone = withPhoneRow.n;
+    const withWebsite = withWebsiteRow.n;
+    const sentEmail = sentEmailRow.n;
+    const sentWhatsapp = sentWhatsappRow.n;
 
     // By source
     const bySource = await db.prepare(`
